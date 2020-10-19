@@ -1,0 +1,63 @@
+name: GO_RELEASE
+on:
+  push:
+    tags:
+      - "v*"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v1
+      - name: Set up Go 1.x
+        uses: actions/setup-go@v2
+        with:
+          go-version: ^1.14
+        id: go
+      - name: Get dependencies
+        run: go mod download
+
+      - name: Gox Installation
+        run: go get github.com/mitchellh/gox
+
+      - name: Build normal
+        run: |
+          gox -osarch="linux/amd64" -output="inframap-linux" ./main
+          gox -osarch="darwin/amd64" -output="inframap-mac" ./main
+      - name: Create Release
+        id: Create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          draft: false
+          prerelease: false
+
+      - name: Upload Release normal linux
+        id: upload-release-asset-linux
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./inframap-linux
+          asset_name: inframap-linux
+          asset_content_type: application/zip
+
+      - name: Upload Release normal macos
+        id: upload-release-asset-mac
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./inframap-mac
+          asset_name: inframap-mac
+          asset_content_type: application/zip
+
+      - name: Get tag
+        id: tag
+        uses: dawidd6/action-get-tag@v1.0.0
