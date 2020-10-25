@@ -17,22 +17,8 @@ type NeoNodeOps struct {
 }
 
 func (me *NeoNodeOps) Create(session neo4jDriver.Session) (errRet error) {
-	/*	me.Operation = "CREATE"
-		var mapStr string
-		for k, _ := range me.Attr {
-			mapStr += k + ": $" + k + ","
-		}
-		mapStr = strings.Trim(mapStr, ",")
-		cypher := fmt.Sprintf("%s (n: %s {%s}) RETURN n", me.Operation, me.Node, mapStr)
-		var cypherMap = make(map[string]interface{})
-		for k, v := range me.Attr {
-			cypherMap[k] = v
-		}
-		_, errRet = session.Run(cypher, cypherMap)
-		if errRet != nil {
-			log.Printf("create fail, %+v", errRet)
-			return
-		}*/
+	Neo4jLockObj.Lock.Lock()
+	defer Neo4jLockObj.Lock.Unlock()
 
 	me.Operation = "create"
 	var mapStr string
@@ -49,8 +35,6 @@ func (me *NeoNodeOps) Create(session neo4jDriver.Session) (errRet error) {
 	for k, v := range me.Attr {
 		cypherMap[k] = v
 	}
-	/*	log.Printf("brickzzhang: %s", cypher)
-		log.Printf("brickzzhang cyphermap: %+v", cypherMap)*/
 	_, errRet = session.Run(cypher, cypherMap)
 	if errRet != nil {
 		log.Printf("create fail, %+v", errRet)

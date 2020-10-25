@@ -1,17 +1,18 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
 
 	"tencentcloud/connection"
 	"tencentcloud/neo4j"
 	"tencentcloud/product/base"
-	"tencentcloud/product/cvm"
-	"tencentcloud/product/image"
 	"tencentcloud/product/region"
+	"tencentcloud/product/register"
 
 	"github.com/tencentcloud/tencentcloud-sdk-go/tencentcloud/common"
+	"golang.org/x/sync/errgroup"
 )
 
 func newTCloudClient(region string) (client *connection.TencentCloudClient) {
@@ -28,6 +29,7 @@ func newTCloudClient(region string) (client *connection.TencentCloudClient) {
 }
 
 func main() {
+	ctx := context.Background()
 	rClient := newTCloudClient("ap-guangzhou")
 	neo4jSess, err := neo4j.StartNeo4j()
 	if err != nil {
@@ -47,29 +49,35 @@ func main() {
 	}
 
 	// generate region nodes
-	if err := regionClient.Create2Neo4j(); err != nil {
+	if err := regionClient.Create2Neo4j(ctx); err != nil {
 		log.Fatalf("region node create2neo4j error: %+v", err)
 	}
 
+	//	group, _ := errgroup.WithContext(ctx)
+	// api frequency limit
 	for _, region := range regions {
+		//		group.Go(func() error {
 		client := newTCloudClient(*region)
-		cvmClient := cvm.CvmService{
-			Client:       client,
-			Neo4jSession: neo4jSess,
+		group, groupCtx := errgroup.WithContext(ctx)
+		for k, v := range register.ServiceMap {
+			innerK := k
+			innerV := v
+			group.Go(func() error {
+				innerV.ServiceInit(client, neo4jSess)
+				if err := innerV.Create2Neo4j(groupCtx); err != nil {
+					log.Fatalf("%s create2neo4j error: %+v", innerK, err)
+					return err
+				}
+				return nil
+			})
 		}
-		if err := cvmClient.Create2Neo4j(); err != nil {
-			log.Fatalf("cvm create2neo4j error: %+v", err)
-		}
-		imgClient := image.ImageService{
-			Client:       client,
-			Neo4jSession: neo4jSess,
-		}
-		if err := imgClient.Create2Neo4j(); err != nil {
-			log.Fatalf("image create2neo4j error: %+v", err)
-		}
+		//			return group.Wait()
+		_ = group.Wait()
+		//		})
 	}
+	//	_ = group.Wait()
 
-	for _, item := range base.Relationships {
+	for _, item := range base.RelationshipsObj.RelationshipList {
 		if err := item.Create(neo4jSess); err != nil {
 			log.Fatalf("create relationship error: %+v", err)
 		}

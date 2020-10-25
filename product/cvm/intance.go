@@ -1,6 +1,7 @@
 package cvm
 
 import (
+	"context"
 	"log"
 
 	"tencentcloud/connection"
@@ -14,6 +15,12 @@ import (
 type CvmService struct {
 	Client       *connection.TencentCloudClient
 	Neo4jSession neo4jDriver.Session
+}
+
+func (me *CvmService) ServiceInit(client *connection.TencentCloudClient, neo4jSession neo4jDriver.Session) error {
+	me.Client = client
+	me.Neo4jSession = neo4jSession
+	return nil
 }
 
 func (me *CvmService) DescribeInstances() (instances []*cvm.Instance, errRet error) {
@@ -58,7 +65,12 @@ func (me *CvmService) read2Neo4j() (neo4jList []*neo4j.NeoNodeOps, errRet error)
 	return
 }
 
-func (me *CvmService) Create2Neo4j() (errRet error) {
+func (me *CvmService) Create2Neo4j(ctx context.Context) (errRet error) {
+	select {
+	case <-ctx.Done():
+		return nil
+	default:
+	}
 	neoList, errRet := me.read2Neo4j()
 	if errRet != nil {
 		log.Printf("%+v", errRet)

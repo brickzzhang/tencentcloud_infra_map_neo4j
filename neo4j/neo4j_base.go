@@ -3,9 +3,20 @@ package neo4j
 import (
 	"log"
 	"os"
+	"sync"
 
 	neo4jDriver "github.com/neo4j/neo4j-go-driver/neo4j"
 )
+
+func init() {
+	Neo4jLockObj = &Neo4jLock{}
+}
+
+type Neo4jLock struct {
+	Lock sync.Mutex
+}
+
+var Neo4jLockObj *Neo4jLock
 
 // each node corresponds to one opsList elem
 func StartNeo4j() (session neo4jDriver.Session, errRet error) {

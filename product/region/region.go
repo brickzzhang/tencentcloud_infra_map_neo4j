@@ -1,6 +1,7 @@
 package region
 
 import (
+	"context"
 	"fmt"
 	"log"
 
@@ -15,6 +16,12 @@ import (
 type RegionService struct {
 	Client       *connection.TencentCloudClient
 	Neo4jSession neo4jDriver.Session
+}
+
+func (me *RegionService) ServiceInit(client *connection.TencentCloudClient, neo4jSession neo4jDriver.Session) error {
+	me.Client = client
+	me.Neo4jSession = neo4jSession
+	return nil
 }
 
 func (me *RegionService) ResourceClean(resources []string) (errRet error) {
@@ -44,7 +51,7 @@ func (me *RegionService) DescribeRegions() (regions []*string, errRet error) {
 	request := cvm.NewDescribeRegionsRequest()
 	response, errRet := me.Client.UseCvmClient().DescribeRegions(request)
 	if errRet != nil {
-		log.Printf("%+v", errRet)
+		return
 	}
 	regions = make([]*string, 0)
 	for _, item := range response.Response.RegionSet {
@@ -78,7 +85,12 @@ func (me *RegionService) Read2Neo4j() (neo4jList []*neo4j.NeoNodeOps, errRet err
 	return
 }
 
-func (me *RegionService) Create2Neo4j() (errRet error) {
+func (me *RegionService) Create2Neo4j(ctx context.Context) (errRet error) {
+	select {
+	case <-ctx.Done():
+		return nil
+	default:
+	}
 	neoList, errRet := me.Read2Neo4j()
 	if errRet != nil {
 		log.Printf("%+v", errRet)

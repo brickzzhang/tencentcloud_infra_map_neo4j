@@ -1,6 +1,7 @@
 package image
 
 import (
+	"context"
 	"log"
 
 	"tencentcloud/connection"
@@ -14,6 +15,12 @@ import (
 type ImageService struct {
 	Client       *connection.TencentCloudClient
 	Neo4jSession neo4jDriver.Session
+}
+
+func (me *ImageService) ServiceInit(client *connection.TencentCloudClient, neo4jSession neo4jDriver.Session) error {
+	me.Client = client
+	me.Neo4jSession = neo4jSession
+	return nil
 }
 
 func (me *ImageService) DescribeImages() (images []*cvm.Image, errRet error) {
@@ -58,7 +65,12 @@ func (me *ImageService) read2Neo4j() (neo4jList []*neo4j.NeoNodeOps, errRet erro
 	return
 }
 
-func (me *ImageService) Create2Neo4j() (errRet error) {
+func (me *ImageService) Create2Neo4j(ctx context.Context) (errRet error) {
+	select {
+	case <-ctx.Done():
+		return nil
+	default:
+	}
 	neoList, errRet := me.read2Neo4j()
 	if errRet != nil {
 		log.Printf("%+v", errRet)
